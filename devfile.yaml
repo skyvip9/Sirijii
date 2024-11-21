@@ -1,0 +1,44 @@
+schemaVersion: 2.1.0
+metadata:
+  name: python-hello-world
+components:
+  # Define your main development component (e.g., a Python container)
+  - name: python
+    container:
+      image: python:3.9
+      command: [ "sleep" ]
+      args: [ "infinity" ]
+      # Optional: Mount any volumes if needed
+      # volumeMounts:
+      #   - name: workspace
+      #     path: /workspace
+  # Optional: Define a sidecar container for firewall management
+  - name: firewall
+    container:
+      image: ubuntu:20.04
+      command: [ "bash", "-c", "--" ]
+      args: 
+        - |
+          apt-get update && 
+          apt-get install -y iptables &&
+          # Example firewall rules: Allow outgoing traffic
+          iptables -P OUTPUT ACCEPT &&
+          iptables -P INPUT DROP &&
+          iptables -P FORWARD DROP &&
+          # Allow established and related incoming traffic
+          iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT &&
+          # Allow SSH (optional, adjust as needed)
+          iptables -A INPUT -p tcp --dport 22 -j ACCEPT &&
+          # Keep the container running
+          tail -f /dev/null
+      privileged: true  # Required for firewall configuration
+commands:
+  # Pre-start command to set up firewall rules
+  - id: setup-firewall
+    exec:
+      component: firewall
+      commandLine: echo "Firewall setup initiated."
+events:
+  preStart:
+    - command:
+        id: setup-firewall
